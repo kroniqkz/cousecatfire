@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบอบรมออนไลน์: Canva AI</title>
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; text-align: center; }
+        .video-container { position: relative; padding-bottom: 56.25%; height: 0; margin-bottom: 20px; }
+        .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 8px; }
+        .form-group { margin-bottom: 15px; }
+        input[type="text"], input[type="email"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        .btn { display: block; width: 100%; padding: 15px; background: #007bff; color: #fff; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 20px; font-weight: bold; }
+        .btn:hover { background: #0056b3; }
+        .btn:disabled { background: #cccccc; cursor: not-allowed; }
+        .quiz { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>อบรมหลักสูตร: การประยุกต์ใช้ Canva AI</h1>
+    
+    <div class="video-container">
+        <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0" allowfullscreen></iframe>
+    </div>
+
+    <div id="learning-section">
+        <div class="form-group">
+            <label for="userName"><b>ชื่อ-นามสกุล (สำหรับพิมพ์ลงใบประกาศนียบัตร)</b></label>
+            <input type="text" id="userName" placeholder="เช่น นายสมชาย รักเรียน" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="userEmail"><b>อีเมลพนักงาน</b></label>
+            <input type="email" id="userEmail" placeholder="เช่น somchai@company.com" required>
+        </div>
+
+        <div class="quiz">
+            <h2>แบบทดสอบหลังเรียน (Post-Test)</h2>
+            <p>1. ฟีเจอร์ใดใน Canva AI ที่ใช้แปลงข้อความเป็นรูปภาพ?</p>
+            <input type="radio" name="q1" value="wrong"> Magic Write<br>
+            <input type="radio" name="q1" value="correct"> Magic Media<br>
+            <input type="radio" name="q1" value="wrong"> Magic Animate<br>
+        </div>
+
+        <button id="submitBtn" class="btn">ส่งคำตอบและรับใบประกาศนียบัตร</button>
+    </div>
+</div>
+
+<canvas id="certCanvas" style="display:none;"></canvas>
+
+<script type="module">
+    // 1. นำเข้า Firebase และ Firestore
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    // 2. ตั้งค่า Config ที่คุณให้มา
+    const firebaseConfig = {
+      apiKey: "AIzaSyBw2LBD57sHagffPMfR_pIx7r6K_wWf8FE",
+      authDomain: "canva-course-a5c03.firebaseapp.com",
+      projectId: "canva-course-a5c03",
+      storageBucket: "canva-course-a5c03.firebasestorage.app",
+      messagingSenderId: "124372365351",
+      appId: "1:124372365351:web:1791ee4f40fa06d42c5e02"
+    };
+
+    // 3. เริ่มต้นระบบ
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 4. คำสั่งเมื่อกดปุ่มส่งข้อสอบ
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+        const name = document.getElementById('userName').value.trim();
+        const email = document.getElementById('userEmail').value.trim();
+        const q1 = document.querySelector('input[name="q1"]:checked');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // เช็คว่ากรอกครบไหม
+        if (!name || !email) {
+            alert('กรุณากรอกชื่อและอีเมลให้ครบถ้วน');
+            return;
+        }
+        if (!q1) {
+            alert('กรุณาทำข้อสอบให้ครบถ้วน');
+            return;
+        }
+
+        const isPassed = (q1.value === 'correct');
+
+        // ปิดปุ่มชั่วคราวกันกดซ้ำ
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'กำลังบันทึกข้อมูลลงระบบ...';
+
+        try {
+            // 5. ส่งข้อมูลเข้า Firestore (เก็บในห้องที่ชื่อว่า 'students')
+            await addDoc(collection(db, "students"), {
+                name: name,
+                email: email,
+                passed: isPassed,
+                timestamp: serverTimestamp()
+            });
+
+            if (isPassed) {
+                submitBtn.innerText = 'สอบผ่าน! กำลังสร้างใบประกาศ...';
+                generateCertificate(name);
+            } else {
+                alert('คุณยังสอบไม่ผ่าน ข้อมูลถูกบันทึกแล้ว กรุณาทบทวนเนื้อหาและสอบใหม่อีกครั้ง');
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'ส่งคำตอบและรับใบประกาศนียบัตร';
+            }
+        } catch (error) {
+            console.error("Error writing document: ", error);
+            alert('เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล กรุณาลองใหม่');
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'ส่งคำตอบและรับใบประกาศนียบัตร';
+        }
+    });
+
+    // 6. ฟังก์ชันสร้างใบเซอร์
+    function generateCertificate(name) {
+        const canvas = document.getElementById('certCanvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.src = 'cert-template.png'; 
+        
+        img.onload = function() {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+
+            ctx.font = 'bold 60px "Sarabun", sans-serif'; 
+            ctx.fillStyle = '#000000'; 
+            ctx.textAlign = 'center';
+            
+            ctx.fillText(name, canvas.width / 2, canvas.height / 2);
+
+            const link = document.createElement('a');
+            link.download = 'Certificate_' + name + '.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            
+            alert('ยินดีด้วย! ระบบดาวน์โหลดใบประกาศนียบัตรให้คุณแล้ว');
+            
+            // รีเซ็ตปุ่มกลับเป็นเหมือนเดิม
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('submitBtn').innerText = 'ส่งคำตอบและรับใบประกาศนียบัตร';
+        };
+
+        img.onerror = function() {
+            alert('ไม่พบไฟล์เทมเพลตใบเซอร์ (cert-template.png) กรุณาตรวจสอบการอัปโหลดไฟล์ครับ');
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('submitBtn').innerText = 'ส่งคำตอบและรับใบประกาศนียบัตร';
+        }
+    }
+</script>
+
+</body>
+</html>
